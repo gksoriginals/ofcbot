@@ -13,6 +13,12 @@ from telegram.ext import (
     CallbackContext,
     CallbackQueryHandler
 )
+from dotenv import load_dotenv
+import os
+
+load_dotenv(
+    "ops/.env"
+)
 
 """
 Commands to use in the bot
@@ -20,8 +26,11 @@ start - Start the bot
 set_language - To choose language of your choice
 """
 
-uuid_number = "UUID_NUMBER"
-bot = Bot(token="TELEGRAM_BOT_TOKEN_KEY")
+
+BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN_KEY")
+uuid_number = os.getenv("UUID_NUMBER")
+bot = Bot(token=BOT_TOKEN)
+CUSTOM_NAME = os.getenv("CUSTOM_NAME")
 
 try:
     from telegram import __version_info__
@@ -56,7 +65,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a message when the command /start is issued."""
     user_name = update.message.chat.first_name
     welcome_message = (
-        f"Hi {user_name}, Welcome to the <CUSTOM_NAME> bot, "
+        f"Hi {user_name}, Welcome to the {CUSTOM_NAME} bot, "
         "your friendly AI powered bot to answer your queries. "
         "Please be advised not to take these AI generated responses as "
         "standard/correct information. Always consult with the concerned "
