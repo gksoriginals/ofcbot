@@ -90,6 +90,64 @@ async def language_handler(update: Update, context: CallbackContext):
 
     await bot.send_message(chat_id=update.effective_chat.id, text="Choose a Language:", reply_markup=reply_markup)
 
+async def action_handler(update: Update, context: CallbackContext):
+
+    language = context.user_data.get('language')
+
+    if language == "English":
+        button_1 = InlineKeyboardButton('Legal rights', callback_data='action_1')
+        button_2 = InlineKeyboardButton('How to advocate', callback_data='action_2')
+        button_3 = InlineKeyboardButton('Grievance redressal', callback_data='action_3')
+    elif language == "Hindi":
+        button_1 = InlineKeyboardButton('कानूनी अधिकार', callback_data='action_1')
+        button_2 = InlineKeyboardButton('वकालत कैसे करें', callback_data='action_2')
+        button_3 = InlineKeyboardButton('शिकायत सुलझाने', callback_data='action_3')
+    elif language == "Kannada":
+        button_1 = InlineKeyboardButton('ಕಾನೂನಿಕ ಹಕುಗಳು', callback_data='action_1')
+        button_2 = InlineKeyboardButton('ಹೇಗೆ ವಕಾಲತಿಯನ್ನು ಮಾಡಬೇಕು', callback_data='action_2')
+        button_3 = InlineKeyboardButton('ದೂರು ಪರಿಹಾರ', callback_data='action_3')
+
+    inline_keyboard_buttons = [[button_1], [button_2], [button_3]]
+    reply_markup = InlineKeyboardMarkup(inline_keyboard_buttons)
+
+    await bot.send_message(chat_id=update.effective_chat.id, text="Choose an action:", reply_markup=reply_markup)
+
+
+async def action_callback(update: Update, context: CallbackContext):
+    callback_query = update.callback_query
+    action = callback_query.data.lstrip('action_')
+
+    language = context.user_data.get('language')
+    text_message = ""
+    if language == "English":
+        text_message = ""
+        if action == "1":
+            text_message = "You have chosen legal rights. \nPlease give your query now"
+        elif action == "2":
+            text_message = "You have chosen how to advocate. \nPlease give your query now"
+        elif action == "3":
+            text_message = "You have chosen grievance redressal. \nPlease give your query now"
+    elif language == "Hindi":
+        text_message = ""
+        if action == "1":
+            text_message = "आपने कानूनी अधिकारों का चयन किया है। \nकृपया अपना प्रश्न दें"
+        elif action == "2":
+            text_message = "आपने वकालत कैसे करें का चयन किया है। \nकृपया अपना प्रश्न दें"
+        elif action == "3":
+            text_message = "आपने शिकायत सुलझाने का चयन किया है। \nकृपया अपना प्रश्न दें"
+
+    elif language == "Kannada":
+        text_message = ""
+        if action == "1":
+            text_message = "ನೀವು ಕಾನೂನಿಕ ಹಕುಗಳನ್ನು ಆಯ್ಕೆ ಮಾಡಿದ್ದೀರಿ. \nದಯವಿಟ್ಟು ನಿಮ್ಮ ಪ್ರಶ್ನೆಯನ್ನು ನೀಡಿ"
+        elif action == "2":
+            text_message = "ನೀವು ಹೇಗೆ ವಕಾಲತಿಯನ್ನು ಮಾಡಬೇಕು ಎಂಬುದನ್ನು ಆಯ್ಕೆ ಮಾಡಿದ್ದೀರಿ. \nದಯವಿಟ್ಟು ನಿಮ್ಮ ಪ್ರಶ್ನೆಯನ್ನು ನೀಡಿ"
+        elif action == "3":
+            text_message = "ನೀವು ದೂರು ಪರಿಹಾರ ಮಾಡುವ ಬಗ್ಗೆ ಆಯ್ಕೆ ಮಾಡಿದ್ದೀರಿ. \nದಯವಿಟ್ಟು ನಿಮ್ಮ ಪ್ರಶ್ನೆಯನ್ನು ನೀಡಿ"
+
+    await bot.send_message(chat_id=update.effective_chat.id, text=text_message)
+
+
 
 async def preferred_language_callback(update: Update, context: CallbackContext):
     callback_query = update.callback_query
@@ -98,13 +156,15 @@ async def preferred_language_callback(update: Update, context: CallbackContext):
 
     text_message = ""
     if preferred_language == "English":
-        text_message = "You have chosen English. \nPlease give your query now"
+        text_message = "You have chosen English."
     elif preferred_language == "Hindi":
-        text_message = "आपने हिंदी चुना है। \nआप अपना सवाल अब हिंदी में पूछ सकते हैं।"
+        text_message = "आपने हिंदी चुना है।"
     elif preferred_language == "Kannada":
-        text_message = "ಕನ್ನಡ ಆಯ್ಕೆ ಮಾಡಿಕೊಂಡಿದ್ದೀರಿ. \nದಯವಿಟ್ಟು ಈಗ ನಿಮ್ಮ ಪ್ರಶ್ನೆಯನ್ನು ನೀಡಿ"
+        text_message = "ಕನ್ನಡ ಆಯ್ಕೆ ಮಾಡಿಕೊಂಡಿದ್ದೀರಿ."
 
     await bot.send_message(chat_id=update.effective_chat.id, text=text_message)
+
+    await action_handler(update, context)
 
 
 async def get_query_response(query: str, voice_message_url: str, voice_message_language: str) -> Union[ApiResponse, ApiError]:
@@ -205,6 +265,10 @@ def main() -> None:
     application.add_handler(CommandHandler("start", start))
 
     application.add_handler(CommandHandler('set_language', language_handler))
+
+    application.add_handler(CommandHandler('set_action', action_handler))
+
+    application.add_handler(CallbackQueryHandler(action_callback, pattern=r'action_\w*'))
 
     application.add_handler(CallbackQueryHandler(preferred_language_callback, pattern=r'lang_\w*'))
 
