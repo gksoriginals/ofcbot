@@ -95,19 +95,16 @@ async def action_handler(update: Update, context: CallbackContext):
     language = context.user_data.get('language')
 
     if language == "English":
-        button_1 = InlineKeyboardButton('Legal rights', callback_data='action_1')
-        button_2 = InlineKeyboardButton('How to advocate', callback_data='action_2')
-        button_3 = InlineKeyboardButton('Grievance redressal', callback_data='action_3')
+        button_1 = InlineKeyboardButton('Informations on legal rights', callback_data='action_1')
+        button_2 = InlineKeyboardButton('information on grievance redressal', callback_data='action_2')
     elif language == "Hindi":
-        button_1 = InlineKeyboardButton('कानूनी अधिकार', callback_data='action_1')
-        button_2 = InlineKeyboardButton('वकालत कैसे करें', callback_data='action_2')
-        button_3 = InlineKeyboardButton('शिकायत सुलझाने', callback_data='action_3')
+        button_1 = InlineKeyboardButton('कानूनी अधिकारों की जानकारी', callback_data='action_1')
+        button_2 = InlineKeyboardButton('शिकायत निवारण की जानकारी', callback_data='action_2')
     elif language == "Kannada":
-        button_1 = InlineKeyboardButton('ಕಾನೂನಿಕ ಹಕುಗಳು', callback_data='action_1')
-        button_2 = InlineKeyboardButton('ಹೇಗೆ ವಕಾಲತಿಯನ್ನು ಮಾಡಬೇಕು', callback_data='action_2')
-        button_3 = InlineKeyboardButton('ದೂರು ಪರಿಹಾರ', callback_data='action_3')
+        button_1 = InlineKeyboardButton('ಕಾನೂನು ಹಕ್ಕುಗಳ ಬಗ್ಗೆ ಮಾಹಿತಿ', callback_data='action_1')
+        button_2 = InlineKeyboardButton('ಕುಂದುಕೊರತೆ ಪರಿಹಾರದ ಮಾಹಿತಿ', callback_data='action_2')
 
-    inline_keyboard_buttons = [[button_1], [button_2], [button_3]]
+    inline_keyboard_buttons = [[button_1], [button_2]]
     reply_markup = InlineKeyboardMarkup(inline_keyboard_buttons)
 
     await bot.send_message(chat_id=update.effective_chat.id, text="Choose an action:", reply_markup=reply_markup)
@@ -124,26 +121,20 @@ async def action_callback(update: Update, context: CallbackContext):
         if action == "1":
             text_message = "You have chosen legal rights. \nPlease give your query now"
         elif action == "2":
-            text_message = "You have chosen how to advocate. \nPlease give your query now"
-        elif action == "3":
-            text_message = "You have chosen grievance redressal. \nPlease give your query now"
+            text_message = "You have chosen grievance redressal. \nPlease give the hospital name and location."
     elif language == "Hindi":
         text_message = ""
         if action == "1":
             text_message = "आपने कानूनी अधिकारों का चयन किया है। \nकृपया अपना प्रश्न दें"
-        elif action == "2":
-            text_message = "आपने वकालत कैसे करें का चयन किया है। \nकृपया अपना प्रश्न दें"
         elif action == "3":
-            text_message = "आपने शिकायत सुलझाने का चयन किया है। \nकृपया अपना प्रश्न दें"
+            text_message = "आपने शिकायत सुलझाने का चयन किया है। \nकृपया अस्पताल का नाम और स्थान बताएं।"
 
     elif language == "Kannada":
         text_message = ""
         if action == "1":
             text_message = "ನೀವು ಕಾನೂನಿಕ ಹಕುಗಳನ್ನು ಆಯ್ಕೆ ಮಾಡಿದ್ದೀರಿ. \nದಯವಿಟ್ಟು ನಿಮ್ಮ ಪ್ರಶ್ನೆಯನ್ನು ನೀಡಿ"
         elif action == "2":
-            text_message = "ನೀವು ಹೇಗೆ ವಕಾಲತಿಯನ್ನು ಮಾಡಬೇಕು ಎಂಬುದನ್ನು ಆಯ್ಕೆ ಮಾಡಿದ್ದೀರಿ. \nದಯವಿಟ್ಟು ನಿಮ್ಮ ಪ್ರಶ್ನೆಯನ್ನು ನೀಡಿ"
-        elif action == "3":
-            text_message = "ನೀವು ದೂರು ಪರಿಹಾರ ಮಾಡುವ ಬಗ್ಗೆ ಆಯ್ಕೆ ಮಾಡಿದ್ದೀರಿ. \nದಯವಿಟ್ಟು ನಿಮ್ಮ ಪ್ರಶ್ನೆಯನ್ನು ನೀಡಿ"
+            text_message = "ನೀವು ದೂರು ಪರಿಹಾರ ಮಾಡುವ ಬಗ್ಗೆ ಆಯ್ಕೆ ಮಾಡಿದ್ದೀರಿ. \nದಯವಿಟ್ಟು ಆಸ್ಪತ್ರೆಯ ಹೆಸರು ಮತ್ತು ಸ್ಥಳವನ್ನು ನೀಡಿ."
 
     await bot.send_message(chat_id=update.effective_chat.id, text=text_message)
 
