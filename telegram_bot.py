@@ -32,6 +32,8 @@ uuid_number = os.getenv("UUID_NUMBER")
 bot = Bot(token=BOT_TOKEN)
 CUSTOM_NAME = os.getenv("CUSTOM_NAME")
 
+PROMPT = f"If the query is about complaint redressal and hospital name is not there ask for hospital name and location"
+
 try:
     from telegram import __version_info__
 except ImportError:
@@ -95,49 +97,12 @@ async def action_handler(update: Update, context: CallbackContext):
     language = context.user_data.get('language')
 
     if language == "English":
-        button_1 = InlineKeyboardButton('Informations on legal rights', callback_data='action_1')
-        button_2 = InlineKeyboardButton('information on grievance redressal', callback_data='action_2')
+        text = f"Ask me about information on legal rights or grievance redressal."
     elif language == "Hindi":
-        button_1 = InlineKeyboardButton('कानूनी अधिकारों की जानकारी', callback_data='action_1')
-        button_2 = InlineKeyboardButton('शिकायत निवारण की जानकारी', callback_data='action_2')
+        text = f"कानूनी अधिकारों या शिकायत सुलझाने के बारे में मुझसे पूछें।"
     elif language == "Kannada":
-        button_1 = InlineKeyboardButton('ಕಾನೂನು ಹಕ್ಕುಗಳ ಬಗ್ಗೆ ಮಾಹಿತಿ', callback_data='action_1')
-        button_2 = InlineKeyboardButton('ಕುಂದುಕೊರತೆ ಪರಿಹಾರದ ಮಾಹಿತಿ', callback_data='action_2')
-
-    inline_keyboard_buttons = [[button_1], [button_2]]
-    reply_markup = InlineKeyboardMarkup(inline_keyboard_buttons)
-
-    await bot.send_message(chat_id=update.effective_chat.id, text="Choose an action:", reply_markup=reply_markup)
-
-
-async def action_callback(update: Update, context: CallbackContext):
-    callback_query = update.callback_query
-    action = callback_query.data.lstrip('action_')
-
-    language = context.user_data.get('language')
-    text_message = ""
-    if language == "English":
-        text_message = ""
-        if action == "1":
-            text_message = "You have chosen legal rights. \nPlease give your query now"
-        elif action == "2":
-            text_message = "You have chosen grievance redressal. \nPlease give the hospital name and location."
-    elif language == "Hindi":
-        text_message = ""
-        if action == "1":
-            text_message = "आपने कानूनी अधिकारों का चयन किया है। \nकृपया अपना प्रश्न दें"
-        elif action == "3":
-            text_message = "आपने शिकायत सुलझाने का चयन किया है। \nकृपया अस्पताल का नाम और स्थान बताएं।"
-
-    elif language == "Kannada":
-        text_message = ""
-        if action == "1":
-            text_message = "ನೀವು ಕಾನೂನಿಕ ಹಕುಗಳನ್ನು ಆಯ್ಕೆ ಮಾಡಿದ್ದೀರಿ. \nದಯವಿಟ್ಟು ನಿಮ್ಮ ಪ್ರಶ್ನೆಯನ್ನು ನೀಡಿ"
-        elif action == "2":
-            text_message = "ನೀವು ದೂರು ಪರಿಹಾರ ಮಾಡುವ ಬಗ್ಗೆ ಆಯ್ಕೆ ಮಾಡಿದ್ದೀರಿ. \nದಯವಿಟ್ಟು ಆಸ್ಪತ್ರೆಯ ಹೆಸರು ಮತ್ತು ಸ್ಥಳವನ್ನು ನೀಡಿ."
-
-    await bot.send_message(chat_id=update.effective_chat.id, text=text_message)
-
+        text = f"ನೀವು ನೀತಿಗಳ ಬಗ್ಗೆ ಅಥವಾ ದೂರು ಪರಿಹಾರ ಬಗ್ಗೆ ನನಗೆ ಕೇಳಿ."
+    await bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 
 async def preferred_language_callback(update: Update, context: CallbackContext):
@@ -162,10 +127,11 @@ async def get_query_response(query: str, voice_message_url: str, voice_message_l
     try:
         if voice_message_url is None:
             if voice_message_language == "English":
-                query_engine_route = 'query-with-langchain-gpt4'
+                query_engine_route = 'query-with-langchain-gpt4-custom-prompt'
                 params = {
                     'uuid_number': uuid_number,
                     'query_string': query,
+                    'prompt': PROMPT,
                 }
 
                 url = f'https://api.jugalbandi.ai/{query_engine_route}?' \
@@ -177,6 +143,7 @@ async def get_query_response(query: str, voice_message_url: str, voice_message_l
                     'audio_url': "",
                     'input_language': voice_message_language,
                     'output_format': 'Text',
+                    'prompt': PROMPT,
                 }
                 url = 'https://api.jugalbandi.ai/query-using-voice-gpt4?' \
                       + urllib.parse.urlencode(params)
@@ -186,6 +153,7 @@ async def get_query_response(query: str, voice_message_url: str, voice_message_l
                 'audio_url': voice_message_url,
                 'input_language': voice_message_language,
                 'output_format': 'Voice',
+                'prompt': PROMPT,
             }
             url = 'https://api.jugalbandi.ai/query-using-voice-gpt4?' \
                   + urllib.parse.urlencode(params)
@@ -206,6 +174,10 @@ async def response_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 async def query_handler(update: Update, context: CallbackContext):
     voice_message_language = context.user_data.get('language')
+
+    if not voice_message_language:
+        await language_handler(update, context)
+        return
     voice_message = None
     query = None
 
@@ -256,10 +228,6 @@ def main() -> None:
     application.add_handler(CommandHandler("start", start))
 
     application.add_handler(CommandHandler('set_language', language_handler))
-
-    application.add_handler(CommandHandler('set_action', action_handler))
-
-    application.add_handler(CallbackQueryHandler(action_callback, pattern=r'action_\w*'))
 
     application.add_handler(CallbackQueryHandler(preferred_language_callback, pattern=r'lang_\w*'))
 
