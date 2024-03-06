@@ -32,7 +32,7 @@ uuid_number = os.getenv("UUID_NUMBER")
 bot = Bot(token=BOT_TOKEN)
 CUSTOM_NAME = os.getenv("CUSTOM_NAME")
 
-PROMPT = f"If the query is about complaint redressal and hospital name is not there ask for hospital name and location"
+PROMPT = f"If the query is about complaint redressal ask whats the complaint and if hospital name is not present in the query ask for hospital name and location"
 
 try:
     from telegram import __version_info__
@@ -97,12 +97,28 @@ async def action_handler(update: Update, context: CallbackContext):
     language = context.user_data.get('language')
 
     if language == "English":
-        text = f"Ask me about information on legal rights or grievance redressal."
+        button_1 = InlineKeyboardButton('⁠I want information on legal rights', callback_data='action_1')
+        button_2 = InlineKeyboardButton('I want to file a complaint', callback_data='action_2')
+        button_3 = InlineKeyboardButton('I am not sure', callback_data='action_3')
     elif language == "Hindi":
-        text = f"कानूनी अधिकारों या शिकायत सुलझाने के बारे में मुझसे पूछें।"
+        button_1 = InlineKeyboardButton('मैं कानूनी अधिकारों पर जानकारी चाहता हूँ', callback_data='action_1')
+        button_2 = InlineKeyboardButton('मैं शिकायत दर्ज करना चाहता हूँ', callback_data='action_2')
+        button_3 = InlineKeyboardButton('मुझे यकीन नहीं है', callback_data='action_3')
     elif language == "Kannada":
-        text = f"ನೀವು ನೀತಿಗಳ ಬಗ್ಗೆ ಅಥವಾ ದೂರು ಪರಿಹಾರ ಬಗ್ಗೆ ನನಗೆ ಕೇಳಿ."
-    await bot.send_message(chat_id=update.effective_chat.id, text=text)
+        button_1 = InlineKeyboardButton('ನೀತಿಯ ಹಕ್ಕುಗಳ ಬಗ್ಗೆ ಮಾಹಿತಿ ಬೇಕಾಗಿದೆ', callback_data='action_1')
+        button_2 = InlineKeyboardButton('ನಾನು ತಪ್ಪಿನದನ್ನು ದಾಖಲಿಸಲು ಬಯಸುತ್ತೇನೆ', callback_data='action_2')
+        button_3 = InlineKeyboardButton('ನನಗೆ ಖಚಿತವಿಲ್ಲ', callback_data='action_3')
+    inline_keyboard_buttons = [[button_1], [button_2], [button_3]]
+    reply_markup = InlineKeyboardMarkup(inline_keyboard_buttons)
+
+    if language == "English":
+        text = "Choose an option"
+    elif language == "Hindi":
+        text = "एक विकल्प चुनें"
+    elif language == "Kannada":
+        text = "ಒಂದು ಆಯ್ಕೆ ಮಾಡಿಕೊಂಡು ನೋಡಿ"
+
+    await bot.send_message(chat_id=update.effective_chat.id, text=text, reply_markup=reply_markup)
 
 
 async def preferred_language_callback(update: Update, context: CallbackContext):
@@ -121,6 +137,26 @@ async def preferred_language_callback(update: Update, context: CallbackContext):
     await bot.send_message(chat_id=update.effective_chat.id, text=text_message)
 
     await action_handler(update, context)
+
+async def preferred_action_callback(update: Update, context: CallbackContext):
+    callback_query = update.callback_query
+    preferred_action = callback_query.data.lstrip('action_')
+    print(preferred_action)
+    context.user_data['action'] = preferred_action
+    if preferred_action == "1":
+        text = "I want information on legal rights"
+    elif preferred_action == "2":
+        text = "I want to file a complaint"
+    elif preferred_action == "3":
+        text = "I am not sure"
+    response = await get_query_response(text, None, context.user_data.get('language'))
+    if "error" in response:
+        await bot.send_message(chat_id=update.effective_chat.id,
+                               text='An error has been encountered. Please try again.')
+        print(response)
+    else:
+        answer = response['answer']
+        await bot.send_message(chat_id=update.effective_chat.id, text=answer)
 
 
 async def get_query_response(query: str, voice_message_url: str, voice_message_language: str) -> Union[ApiResponse, ApiError]:
@@ -230,6 +266,8 @@ def main() -> None:
     application.add_handler(CommandHandler('set_language', language_handler))
 
     application.add_handler(CallbackQueryHandler(preferred_language_callback, pattern=r'lang_\w*'))
+
+    application.add_handler(CallbackQueryHandler(preferred_action_callback, pattern=r'action_\w*'))
 
     application.add_handler(MessageHandler(filters.TEXT | filters.VOICE, response_handler))
 
