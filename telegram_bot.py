@@ -32,7 +32,7 @@ uuid_number = os.getenv("UUID_NUMBER")
 bot = Bot(token=BOT_TOKEN)
 CUSTOM_NAME = os.getenv("CUSTOM_NAME")
 
-PROMPT = f"If the query is about complaint redressal ask whats the complaint and if hospital name is not present in the query ask for hospital name and location"
+PROMPT = f"If the user ask help to raise a complaint make sure you ask whats the complaint and the name of the hospital. Do not ask for location when user ask information about legal rights"
 
 try:
     from telegram import __version_info__
