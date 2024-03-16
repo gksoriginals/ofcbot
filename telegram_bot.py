@@ -45,7 +45,11 @@ uuid_number = os.getenv("UUID_NUMBER")
 bot = Bot(token=BOT_TOKEN)
 CUSTOM_NAME = os.getenv("CUSTOM_NAME")
 
-PROMPT = f"If the user ask help to raise a complaint make sure you ask whats the complaint and the name of the hospital. If the user ask for legal rights make sure you ask user to provide more details about the issue. If the user is not sure ask the user to provide more details about the issue."
+PROMPT = f"""If the user ask help to raise a complaint make sure you ask whats the complaint and the name of the hospital. 
+If the user ask for legal rights make sure you ask user to provide more details about the issue. 
+If the user is not sure ask the user to provide more details about the issue.
+Your purpose is to assist user with information on legal rights and help them to raise a complaint.
+You do not support any other services"""
 
 try:
     from telegram import __version_info__
