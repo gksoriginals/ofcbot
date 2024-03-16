@@ -1,4 +1,6 @@
 telegram==0.0.1
 python-telegram-bot==20.0
 python-dotenv
+sqlalchemy
 requests
+psycopg2-binary
