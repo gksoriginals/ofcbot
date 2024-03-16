@@ -1,5 +1,6 @@
 import logging
 import urllib
+from contextlib import closing
 from typing import Union, TypedDict
 import requests
 from telegram import __version__ as TG_VER
@@ -14,7 +15,19 @@ from telegram.ext import (
     CallbackQueryHandler
 )
 from dotenv import load_dotenv
+from db.database import (
+    generate_database, 
+    create_tables,
+    Session
+)
+
+from db.models import User, Messages
+
 import os
+
+generate_database()
+create_tables()
+
 
 load_dotenv(
     "ops/.env"
@@ -241,6 +254,15 @@ async def query_handler(update: Update, context: CallbackContext):
 
 async def handle_query_response(update: Update, query: str, voice_message_url: str, voice_message_language: str):
     response = await get_query_response(query, voice_message_url, voice_message_language)
+    with closing(Session()) as session:
+        user = session.query(User).filter_by(username=update.message.chat.username).first()
+        if user is None:
+            user = User(username=update.message.chat.username)
+            session.add(user)
+            session.commit()
+        message = Messages(user_id=user.id, messages=response)
+        session.add(message)
+        session.commit()
     if "error" in response:
         await bot.send_message(chat_id=update.effective_chat.id,
                                text='An error has been encountered. Please try again.')
