@@ -1,7 +1,6 @@
 import logging
 import urllib
-from contextlib import closing
-from typing import Union, TypedDict
+from typing import Union
 import requests
 from telegram import __version__ as TG_VER
 from telegram import Update, Bot, InlineKeyboardButton, InlineKeyboardMarkup
@@ -14,19 +13,12 @@ from telegram.ext import (
     CallbackContext,
     CallbackQueryHandler
 )
+from models import ApiResponse, ApiError
 from dotenv import load_dotenv
-from db.database import (
-    generate_database, 
-    create_tables,
-    Session
-)
+from agents import OFCAgent
 
-from db.models import User, Messages
 
 import os
-
-generate_database()
-create_tables()
 
 
 load_dotenv(
@@ -44,12 +36,6 @@ BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN_KEY")
 uuid_number = os.getenv("UUID_NUMBER")
 bot = Bot(token=BOT_TOKEN)
 CUSTOM_NAME = os.getenv("CUSTOM_NAME")
-
-PROMPT = f"""If the user ask help to raise a complaint make sure you ask whats the complaint and the name of the hospital. 
-If the user ask for legal rights make sure you ask user to provide more details about the issue. 
-If the user is not sure ask the user to provide more details about the issue.
-Your purpose is to assist user with information on legal rights and help them to raise a complaint.
-You do not support any other services"""
 
 try:
     from telegram import __version_info__
@@ -69,29 +55,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
-class ApiResponse(TypedDict):
-    query: str
-    answer: str
-    source_text: str
-
-
-class ApiError(TypedDict):
-    error: Union[str, requests.exceptions.RequestException]
-
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Send a message when the command /start is issued."""
-    user_name = update.message.chat.first_name
-    welcome_message = (
-        f"Hi {user_name}, Welcome to the {CUSTOM_NAME} bot, "
-        "your friendly AI powered bot to answer your queries. "
-        "Please be advised not to take these AI generated responses as "
-        "standard/correct information. Always consult with the concerned "
-        "personnel for availing relevant information."
-    )
-    await bot.send_message(chat_id=update.effective_chat.id,
-                           text=welcome_message)
+    """When the command /start is issued ask the user to choose a language"""
     await relay_handler(update, context)
 
 
@@ -153,7 +118,29 @@ async def preferred_language_callback(update: Update, context: CallbackContext):
 
     await bot.send_message(chat_id=update.effective_chat.id, text=text_message)
 
+    username = update.effective_user.username
+    if not username:
+        username = update.effective_user.first_name
+    if not username:
+        username = "User"
+
+    agent = OFCAgent(
+        username=username,
+        language=context.user_data.get('language'),
+        uuid=uuid_number
+    )
+
+    text_responses, voice_response, history = agent.execute("Start", None)
+    for text_response in text_responses:
+        await bot.send_message(chat_id=update.effective_chat.id, text=text_response)
+    if voice_response:
+        await bot.send_voice(chat_id=update.effective_chat.id, voice=voice_response)
+    
+    context.user_data['agent_state'] = agent.get_agent_state()
+
     await action_handler(update, context)
+
+
 
 async def preferred_action_callback(update: Update, context: CallbackContext):
     callback_query = update.callback_query
@@ -166,59 +153,24 @@ async def preferred_action_callback(update: Update, context: CallbackContext):
         text = "I want to file a complaint"
     elif preferred_action == "3":
         text = "I am not sure"
-    response = await get_query_response(text, None, context.user_data.get('language'))
-    if "error" in response:
-        await bot.send_message(chat_id=update.effective_chat.id,
-                               text='An error has been encountered. Please try again.')
-        print(response)
-    else:
-        answer = response['answer']
-        await bot.send_message(chat_id=update.effective_chat.id, text=answer)
 
+    agent = OFCAgent(       
+        username=update.effective_user.username,
+        language=context.user_data.get('language'),
+        uuid=uuid_number,
+        history=context.user_data.get('agent_state', {}).get('history', [])
+    )
 
-async def get_query_response(query: str, voice_message_url: str, voice_message_language: str) -> Union[ApiResponse, ApiError]:
-    try:
-        if voice_message_url is None:
-            if voice_message_language == "English":
-                query_engine_route = 'query-with-langchain-gpt4-custom-prompt'
-                params = {
-                    'uuid_number': uuid_number,
-                    'query_string': query,
-                    'prompt': PROMPT,
-                }
+    text_responses, voice_response, history = agent.execute(text, False)
+    
+    for text_response in text_responses:
+        if text_response:
+            await bot.send_message(chat_id=update.effective_chat.id, text=text_response)
 
-                url = f'https://api.jugalbandi.ai/{query_engine_route}?' \
-                      + urllib.parse.urlencode(params)
-            else:
-                params = {
-                    'uuid_number': uuid_number,
-                    'query_text': query,
-                    'audio_url': "",
-                    'input_language': voice_message_language,
-                    'output_format': 'Text',
-                    'prompt': PROMPT,
-                }
-                url = 'https://api.jugalbandi.ai/query-using-voice-gpt4?' \
-                      + urllib.parse.urlencode(params)
-        else:
-            params = {
-                'uuid_number': uuid_number,
-                'audio_url': voice_message_url,
-                'input_language': voice_message_language,
-                'output_format': 'Voice',
-                'prompt': PROMPT,
-            }
-            url = 'https://api.jugalbandi.ai/query-using-voice-gpt4?' \
-                  + urllib.parse.urlencode(params)
+    if voice_response:
+        await bot.send_voice(chat_id=update.effective_chat.id, voice=voice_response)
 
-        response = requests.get(url)
-        response.raise_for_status()
-        data = response.json()
-        return data
-    except requests.exceptions.RequestException as e:
-        return {'error': e}
-    except (KeyError, ValueError):
-        return {'error': 'Invalid response received from API'}
+    context.user_data['agent_state'] = agent.get_agent_state()
 
 
 async def response_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -239,11 +191,15 @@ async def query_handler(update: Update, context: CallbackContext):
     elif update.message.voice:
         voice_message = update.message.voice
 
-    voice_message_url = None
     if voice_message is not None:
         voice_file = await voice_message.get_file()
-        voice_message_url = voice_file.file_path
+        voice_message = voice_file.file_path
+        voice = True
+    else:
+        voice = False
 
+    query = query or voice_message
+    
     text_message = ""
     if voice_message_language == "English":
         text_message = "Thank you, allow me to search for the best information to respond to your query."
@@ -253,35 +209,26 @@ async def query_handler(update: Update, context: CallbackContext):
         text_message = "ಧನ್ಯವಾದ. ನಾನು ಉತ್ತಮ ಮಾಹಿತಿಯನ್ನು ಕಂಡುಕೊಳ್ಳುವವರೆಗೆ ದಯವಿಟ್ಟು ನಿರೀಕ್ಷಿಸಿ"
 
     await bot.send_message(chat_id=update.effective_chat.id, text=text_message)
-    await handle_query_response(update, query, voice_message_url, voice_message_language)
+
+    agent = OFCAgent(
+        username=update.effective_user.username,
+        language=context.user_data.get('language'),
+        uuid=uuid_number,
+        history=context.user_data.get('agent_state', {}).get('history', [])
+    )
+
+    text_responses, voice_response, history = agent.execute(query, voice)
+
+    for text_response in text_responses:
+        if text_response:
+            await bot.send_message(chat_id=update.effective_chat.id, text=text_response)
+    
+    if voice_response:
+        await bot.send_voice(chat_id=update.effective_chat.id, voice=voice_response)
+
+    context.user_data['agent_state'] = agent.get_agent_state()
 
 
-async def handle_query_response(update: Update, query: str, voice_message_url: str, voice_message_language: str):
-    response = await get_query_response(query, voice_message_url, voice_message_language)
-    with closing(Session()) as session:
-        user = session.query(User).filter_by(username=update.message.chat.username).first()
-        if user is None:
-            user = User(username=update.message.chat.username)
-            session.add(user)
-            session.commit()
-        message = Messages(user_id=user.id, messages=response)
-        session.add(message)
-        session.commit()
-    if "error" in response:
-        await bot.send_message(chat_id=update.effective_chat.id,
-                               text='An error has been encountered. Please try again.')
-        print(response)
-    else:
-        answer = response['answer']
-        await bot.send_message(chat_id=update.effective_chat.id, text=answer)
-
-        if 'audio_output_url' in response:
-            audio_output_url = response['audio_output_url']
-            if audio_output_url != "":
-                audio_request = requests.get(audio_output_url)
-                audio_data = audio_request.content
-                await bot.send_voice(chat_id=update.effective_chat.id,
-                                     voice=audio_data)
 
 
 def main() -> None:
