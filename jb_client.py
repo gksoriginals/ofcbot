@@ -2,15 +2,8 @@ import requests
 import os
 import urllib
 
-PROMPT = f"""If the user ask help to raise a complaint make sure you ask whats the complaint and the name of the hospital. 
-If the user ask for legal rights make sure you ask user to provide more details about the issue. 
-If the user is not sure ask the user to provide more details about the issue.
-Your purpose is to assist user with information on legal rights related to medical negligance and help them to raise a complaint.
-You do not support any other services. Give responses concise and to the point. Make it in small paragraphs.
-
-consider this history of conversation to answeer questions:
-"""
-
+with open("prompts/prompt.txt", "r") as f:
+    PROMPT = f.read()
 
 class JBClient:
     def __init__(self, language, uuid, history=""):
