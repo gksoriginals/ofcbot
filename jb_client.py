@@ -31,7 +31,7 @@ class JBClient:
                         'audio_url': "",
                         'input_language': self.language,
                         'output_format': 'Text',
-                        'prompt': PROMPT,
+                        'prompt': self.base_prompt,
                     }
                 url = f"{self.base_url}{self.text_route}?{urllib.parse.urlencode(params)}"
 
